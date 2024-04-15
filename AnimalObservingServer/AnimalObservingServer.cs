@@ -8,11 +8,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using U8_Library;
-using MySqlConnector;
 using static System.Net.Mime.MediaTypeNames;
 using System.Runtime.CompilerServices;
 using System.Data;
 using System.Xml.Linq;
+using AnimalObservingServer.Marker;
+using System.Text.RegularExpressions;
 
 namespace AnimalObservingServer
 {
@@ -20,6 +21,7 @@ namespace AnimalObservingServer
     {
         private readonly List<Socket> _clientConnections;
         private readonly List<Message> _messages;
+        private readonly DatabaseHandler databaseHandler = new DatabaseHandler("localhost", 4723, "animals", "root", "Heslo123");
         private readonly int _port;
 
         public AnimalObservingServer(int port)
@@ -31,7 +33,6 @@ namespace AnimalObservingServer
 
         public void Start()
         {
-            LoadMessagesOnStartup();
             Socket serverListener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, _port);
             try
@@ -48,7 +49,11 @@ namespace AnimalObservingServer
             serverListener.Listen(0);
             Console.WriteLine("AnimalObserving-Server started");
 
-            GetFromDatabaseTest();
+            foreach (var record in databaseHandler.GetMarkers(38,14,50,20))
+            {
+                Console.WriteLine(record.ToString());
+            }
+            Console.WriteLine(databaseHandler.GetDetailedRecord(25));
 
             while (true)
             {
@@ -91,89 +96,6 @@ namespace AnimalObservingServer
                 return null;
         }
 
-        public void GetFromDatabaseTest()
-        {
-            List<(int, string)> species = new List<(int, string)>();
-            string _connectionString = "server=localhost;port=4723;Database=animals;uid=root;pwd=Heslo123;Allow User Variables=true;";
-            MySqlConnection conn = null;
-            MySqlCommand cmd = null;
-            try
-            {
-                conn = new MySqlConnection(_connectionString);
-                conn.Open();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-            MySqlDataReader reader;
-            cmd = new MySqlCommand("SELECT * FROM Species", conn);
-            MySqlDataReader citac = null;
-            try
-            {
-                citac = cmd.ExecuteReader();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-            while (citac.Read())
-            {
-                int id = citac.GetInt32("SpeciesID");
-                string description = citac.GetString("SpeciesName");
-                species.Add((id, description));
-            }
-            citac.Close();
-            foreach (var specie in species)
-            {
-                Console.WriteLine($"ID: {specie.Item1}, Name: {specie.Item2}");
-            }
-        }
-
-        private void LoadMessagesOnStartup()
-        {
-            string savesFolder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "saves");
-            //Get file with highest number
-            // Check if the directory exists
-            long highestNumber = 0;
-            if (Directory.Exists(savesFolder))
-            {
-                // Get all files in the directory
-                string[] files = Directory.GetFiles(savesFolder);
-
-                // Perform an action for each file
-                foreach (string filePath in files)
-                {
-                    long currentNumber = long.Parse(Path.GetFileName(filePath).Split(".")[0]);
-                    if (currentNumber > highestNumber)
-                    {
-                        highestNumber = currentNumber;
-                    }
-                }
-                if (highestNumber > 1)
-                {
-                    Console.WriteLine($"Loading messages from saves/{highestNumber}.json");
-                    try
-                    {
-                        // Read all lines from the file and store them in an array of strings
-                        string[] lines = File.ReadAllLines(savesFolder + $"\\{highestNumber}.json");
-
-                        // Display the loaded strings
-                        foreach (string line in lines)
-                        {
-                            //Console.WriteLine(line);
-                            _messages.Add(StringToMessage(line));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        // Handle exceptions, such as file not found or access denied
-                        Console.WriteLine($"Error reading the file: {ex.Message}");
-                    }
-                }
-            }
-        }
-
         private void ReceiveClientMessagess(Socket client)
         {
             while (true)
@@ -191,7 +113,7 @@ namespace AnimalObservingServer
                     }
                     string messageString = Encoding.ASCII.GetString(message, 0, size);
                     //Do something with messages
-                    ProcessMessage(StringToMessage(messageString));
+                    ProcessMessage(StringToMessage(messageString), client);
                 }
                 catch
                 {
@@ -203,7 +125,7 @@ namespace AnimalObservingServer
             }
         }
 
-        private void ProcessMessage(Message message)
+        private void ProcessMessage(Message message, Socket clientSocket)
         {
             if (message == null)
             {
@@ -211,23 +133,24 @@ namespace AnimalObservingServer
             }
             Console.WriteLine(message.ToString());
             SendMessageToAllClients(message);
-            if (message.Text[0] == '/')
+            switch (message.MessageType)
             {
-                switch (message.Text)
-                {
-                    case "/save":
-                        SaveMessagesToFile();
-                        SendMessageToAllClients(new Message("Saving messages", DateTime.Now, "SERVER"));
-                        break;
-                    default:
-                        Console.WriteLine("Unknown command");
-                        SendMessageToAllClients(new Message("Unknown command", DateTime.Now, "SERVER"));
-                        break;
-                }
-            }
-            else
-            {
-                _messages.Add(message);
+                //Zparsuj nejak podla typu requestu
+                case MessageType.RequestMarkers:
+                    //SendMessageToAllClients(new Message("Saving messages", DateTime.Now, "SERVER", MessageType.Informative));
+                    Console.WriteLine("REQUESTED MARKERS");
+                    //TODO: Posli odpoved obsahujucu markers
+
+                    //parse coords with regex
+                    //lat1,lon1,lat2,lon2
+                    //List<MapMarker> markers = 
+
+                    //foreach marker posli message a potom zakonci nejakou ukoncovacou spravou aby vedel ze uz ma vsetky markery
+                    break;
+                default:
+                    //Console.WriteLine("Unknown command");
+                    //SendMessageToAllClients(new Message("Unknown command", DateTime.Now, "SERVER", MessageType.Informative));
+                    break;
             }
         }
 
@@ -243,40 +166,6 @@ namespace AnimalObservingServer
             }
         }
 
-        private void SaveMessagesToFile()
-        {
-            if (_messages.Count <= 1)
-            {
-                return;
-            }
-            Console.WriteLine("Saving messages");
-            using (var mutex = new Mutex())
-            {
-                try
-                {
-                    mutex.WaitOne();
-
-                    string savesFolder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "saves");
-                    Directory.CreateDirectory(savesFolder);
-
-                    string filePath = Path.Combine(savesFolder, $"{DateTime.Now:yyyyMMddHHmmssfff}.json");
-
-                    using (StreamWriter writer = new StreamWriter(filePath, true))
-                    {
-                        foreach (Message message in _messages)
-                        {
-                            writer.WriteLine(message.ToJsonString());
-                        }
-                    }
-                    _messages.Clear();
-                }
-                finally
-                {
-                    mutex.ReleaseMutex();
-                }
-            }
-        }
-
         private void SendMessageToAllClients(Message message)
         {
             foreach (Socket clientSocket in _clientConnections)
@@ -284,6 +173,12 @@ namespace AnimalObservingServer
                 byte[] messageBytes = Encoding.ASCII.GetBytes(message.ToJsonString());
                 SendToEndpoint(clientSocket, messageBytes);
             }
+        }
+
+        private void SendToEndpoint(Socket clientSocket, Message message)
+        {
+            byte[] messageBytes = Encoding.ASCII.GetBytes(message.ToJsonString());
+            clientSocket.Send(messageBytes, 0, messageBytes.Length, SocketFlags.None);
         }
 
         private void SendToEndpoint(Socket clientSocket, byte[] messageBytes)

@@ -5,16 +5,26 @@ using System.Xml.Linq;
 
 namespace U8_Library
 {
+    public enum MessageType
+    {
+        Informative,
+        RequestMarkers,
+        RequestDetailedMarker
+    }
     public class Message
     {
         public string Text { get; private set; }
         public DateTime Date { get; private set; }
         public string SenderName { get; private set; }
-        public Message(string Text, DateTime Date, string SenderName)
+
+        public MessageType MessageType { get; private set; }
+
+        public Message(string Text, DateTime Date, string SenderName, MessageType messageType = MessageType.Informative)
         {
             this.Text = Text;
             this.Date = Date;
             this.SenderName = SenderName;
+            this.MessageType = messageType;
         }
 
         public string ToJsonString()
