@@ -24,7 +24,7 @@ namespace AnimalObservingServer.Marker
 
         public string ToString()
         {
-            return $"{SpeciesID}{Date}{RecordLabel}{Text}";
+            return $"{SpeciesID};{Date};{RecordLabel};{Text}";
         }
 
     }

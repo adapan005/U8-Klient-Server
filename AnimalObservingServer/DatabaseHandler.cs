@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -56,6 +57,8 @@ namespace AnimalObservingServer
                 animalRecords.Add(new MapMarker(id, latitude, longitude));
             }
             citac.Close();
+            connection.Close();
+            Console.WriteLine(connection.ConnectionString);
             return animalRecords;
         }
 

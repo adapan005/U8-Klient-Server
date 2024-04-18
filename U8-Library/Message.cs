@@ -9,7 +9,8 @@ namespace U8_Library
     {
         Informative,
         RequestMarkers,
-        RequestDetailedMarker
+        RequestDetailedMarker,
+        MapMarkerInfo
     }
     public class Message
     {

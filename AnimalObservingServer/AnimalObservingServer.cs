@@ -49,11 +49,11 @@ namespace AnimalObservingServer
             serverListener.Listen(0);
             Console.WriteLine("AnimalObserving-Server started");
 
-            foreach (var record in databaseHandler.GetMarkers(38,14,50,20))
+            foreach (var record in databaseHandler.GetMarkers(38, 14, 50, 20))
             {
                 Console.WriteLine(record.ToString());
             }
-            Console.WriteLine(databaseHandler.GetDetailedRecord(25));
+            //Console.WriteLine(databaseHandler.GetDetailedRecord(25));
 
             while (true)
             {
@@ -131,21 +131,39 @@ namespace AnimalObservingServer
             {
                 return;
             }
-            Console.WriteLine(message.ToString());
-            SendMessageToAllClients(message);
             switch (message.MessageType)
             {
                 //Zparsuj nejak podla typu requestu
                 case MessageType.RequestMarkers:
-                    //SendMessageToAllClients(new Message("Saving messages", DateTime.Now, "SERVER", MessageType.Informative));
                     Console.WriteLine("REQUESTED MARKERS");
+                    string text = message.Text;
+                    string pattern = @"\d+";
+                    MatchCollection matches = Regex.Matches(text, pattern);
+                    int[] numbers = new int[4];
+                    for (int i = 0; i < 4; i++)
+                    {
+                        numbers[i] = int.Parse(matches[i].Value);
+                    }
+                    int lat1 = numbers[0];
+                    int lng1 = numbers[1];
+                    int lat2 = numbers[2];
+                    int lng2 = numbers[3];
+                    List<MapMarker> markers = databaseHandler.GetMarkers(lat1, lng1, lat2, lng2);
                     //TODO: Posli odpoved obsahujucu markers
-
-                    //parse coords with regex
-                    //lat1,lon1,lat2,lon2
-                    //List<MapMarker> markers = 
-
                     //foreach marker posli message a potom zakonci nejakou ukoncovacou spravou aby vedel ze uz ma vsetky markery
+                    //alebo bude na strane klienta permanentne nejake vlakno co bude pozerat na prijate spravy a podla toho pridavat
+                    //nove markers
+                    foreach (var marker in markers)
+                    {
+                        Message newMessage = new Message(marker.ToString(), DateTime.UtcNow, "", MessageType.MapMarkerInfo);
+                        SendToEndpoint(clientSocket, newMessage);
+                    }
+
+                    break;
+                case MessageType.RequestDetailedMarker:
+                    DetailedRecord record = databaseHandler.GetDetailedRecord(Int32.Parse(message.Text));
+                    SendToEndpoint(clientSocket, record.ToString(), MessageType.RequestDetailedMarker);
+                    //SendToEndpoint(clientSocket, "END", MessageType.Informative);
                     break;
                 default:
                     //Console.WriteLine("Unknown command");
@@ -184,6 +202,12 @@ namespace AnimalObservingServer
         private void SendToEndpoint(Socket clientSocket, byte[] messageBytes)
         {
             clientSocket.Send(messageBytes, 0, messageBytes.Length, SocketFlags.None);
+        }
+
+        private void SendToEndpoint(Socket clientSocket, string text, MessageType type)
+        {
+            Message message = new Message(text, DateTime.UtcNow, "", type);
+            SendToEndpoint(clientSocket, message);
         }
     }
 }

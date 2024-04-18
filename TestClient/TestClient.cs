@@ -49,8 +49,14 @@ namespace TestClient
 
         public void RequestMarkers(decimal lat1, decimal lng1, decimal lat2, decimal lng2)
         {
-            Message newMessage = new Message($"{lat1};{lat2};{lng1};{lng2}", DateTime.Now, "", MessageType.RequestMarkers);
+            Message newMessage = new Message($"{lat1};{lng1};{lat2};{lng2}", DateTime.Now, "", MessageType.RequestMarkers);
             SendMessage(newMessage);
+        }
+
+        public void RequestDetailedRecord(int idOfRecord)
+        {
+            Message message = new Message($"{idOfRecord}", DateTime.UtcNow, "", MessageType.RequestDetailedMarker);
+            SendMessage(message);
         }
 
         public void SendMessage(string text)
@@ -112,7 +118,7 @@ namespace TestClient
                             Message? receivedMessage = JsonSerializer.Deserialize<Message>(match.Value);
                             if (receivedMessage != null)
                             {
-                                Console.WriteLine(receivedMessage.ToString());
+                                Console.WriteLine("RECEIVERD: "+receivedMessage.ToString());
                             }
                         }
                     }
