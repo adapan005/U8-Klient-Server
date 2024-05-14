@@ -53,6 +53,24 @@ namespace TestClient
             SendMessage(newMessage);
         }
 
+        public void RequstAllMarkers()
+        {
+            Message newMessage = new Message("GetAllMarkers", DateTime.Now, "", MessageType.RequestAllMarkers);
+            SendMessage(newMessage);
+        }
+
+        internal void RequestAllSpecies()
+        {
+            Message newMessage = new Message("GetAllSpecies", DateTime.Now, "TestClient", MessageType.RequestAllSpecies);
+            SendMessage(newMessage);
+        }
+
+        public void AddRecord(int speciesID, double latitude, double longitude, string recordLabel, string recordDescription)
+        {
+            Message message = new Message($"{speciesID};{latitude};{longitude};{recordLabel};{recordDescription}", DateTime.Now, "TestClient", MessageType.AddRecordWithMarker);
+            SendMessage(message);
+        }
+
         public void RequestDetailedRecord(int idOfRecord)
         {
             Message message = new Message($"{idOfRecord}", DateTime.UtcNow, "", MessageType.RequestDetailedMarker);

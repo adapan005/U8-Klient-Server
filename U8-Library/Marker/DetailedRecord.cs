@@ -4,27 +4,28 @@ using System.Linq;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace AnimalObservingServer.Marker
 {
     public class DetailedRecord : MapMarker
     {
-        public DetailedRecord(int id, decimal latitude, decimal longitude, int speciesID, string Text, DateTime dateTime, string label) : base(id, latitude, longitude)
+        public DetailedRecord(int id, decimal latitude, string recordLabel, decimal longitude, string speciesName, string description, DateTime dateTime) : base(id, latitude, longitude, recordLabel)
         {
-            this.SpeciesID = speciesID;
-            this.Text = Text;
+            this.SpeciesName = speciesName;
+            this.Description = description;
             this.Date = dateTime;
-            this.RecordLabel = label;
         }
 
-        public string Text { get; private set; }
+        public string Description { get; private set; }
         public DateTime Date { get; private set; }
-        public int SpeciesID { get; private set; }
-        public string RecordLabel {  get; private set; }
+        public string SpeciesName { get; private set; }
 
-        public string ToString()
+        public override string ToString()
         {
-            return $"{SpeciesID};{Date};{RecordLabel};{Text}";
+            //markerID, lat, lon, recordLabel, SpeciesName, date, description
+            //base.ToString(): $"{MarkerId};{Latitude};{Longitude};{RecordLabel}"
+            return $"{base.ToString()};{SpeciesName};{Date};{Description}";
         }
 
     }

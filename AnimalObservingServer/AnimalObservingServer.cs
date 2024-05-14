@@ -14,6 +14,7 @@ using System.Data;
 using System.Xml.Linq;
 using AnimalObservingServer.Marker;
 using System.Text.RegularExpressions;
+using U8_Library.Species;
 
 namespace AnimalObservingServer
 {
@@ -49,10 +50,10 @@ namespace AnimalObservingServer
             serverListener.Listen(0);
             Console.WriteLine("AnimalObserving-Server started");
 
-            foreach (var record in databaseHandler.GetMarkers(38, 14, 50, 20))
-            {
-                Console.WriteLine(record.ToString());
-            }
+            //foreach (var record in databaseHandler.GetSpecies())
+            //{
+            //    Console.WriteLine(record.ToString());
+            //}
             //Console.WriteLine(databaseHandler.GetDetailedRecord(25));
 
             while (true)
@@ -113,6 +114,9 @@ namespace AnimalObservingServer
                     }
                     string messageString = Encoding.ASCII.GetString(message, 0, size);
                     //Do something with messages
+                    Console.WriteLine("RAW RECEIVED: " + messageString);
+                    //Message msg = StringToMessage(messageString);
+                    //Console.WriteLine("TO MESSAGE: " + msg.ToString());
                     ProcessMessage(StringToMessage(messageString), client);
                 }
                 catch
@@ -131,12 +135,24 @@ namespace AnimalObservingServer
             {
                 return;
             }
+            Console.WriteLine(message.Text);
+
+            string text = message.Text;
             switch (message.MessageType)
             {
                 //Zparsuj nejak podla typu requestu
+                case MessageType.RequestAllMarkers:
+                    Console.WriteLine("REQUESTED ALL MARKERS");
+                    List<MapMarker> allMarkers = databaseHandler.GetAllMarkers();
+                    foreach (var marker in allMarkers)
+                    {
+                        Message newMessage = new Message(marker.ToString(), DateTime.UtcNow, "", MessageType.MapMarkerInfo);
+                        SendToEndpoint(clientSocket, newMessage);
+                    }
+                    break;
+
                 case MessageType.RequestMarkers:
                     Console.WriteLine("REQUESTED MARKERS");
-                    string text = message.Text;
                     string pattern = @"\d+";
                     MatchCollection matches = Regex.Matches(text, pattern);
                     int[] numbers = new int[4];
@@ -161,9 +177,37 @@ namespace AnimalObservingServer
 
                     break;
                 case MessageType.RequestDetailedMarker:
+                    Console.WriteLine("REQUESTED DETAILED RECORD");
                     DetailedRecord record = databaseHandler.GetDetailedRecord(Int32.Parse(message.Text));
                     SendToEndpoint(clientSocket, record.ToString(), MessageType.RequestDetailedMarker);
                     //SendToEndpoint(clientSocket, "END", MessageType.Informative);
+                    break;
+                case MessageType.RequestAllSpecies:
+                    Console.WriteLine("REQUESTED ALL SPECIES");
+                    List<Specie> allSpecies = databaseHandler.GetSpecies();
+                    foreach (var specie in allSpecies)
+                    {
+                        Message newMessage = new Message(specie.ToString(), DateTime.UtcNow, "", MessageType.MapMarkerInfo);
+                        SendToEndpoint(clientSocket, newMessage);
+                    }
+                    break;
+                case MessageType.AddRecordWithMarker:
+                    Console.WriteLine("RECORD WRITING REQEUSTED");
+                    string[] polia = text.Split(';');
+                    int speciesID = Int32.Parse(polia[0]);
+                    double lat = Double.Parse(polia[1]);
+                    double lon = Double.Parse(polia[2]);
+                    string label = polia[3];
+                    string description = polia[4];
+                    //FORMAT BUDE int speciesID, decimal latitude, decimal longitude, DateTime recordDate, string recordLabel, string recordDescription
+                    databaseHandler.AddRecordWithMarker(
+                        speciesID,
+                        lat,
+                        lon,
+                        label,
+                        description
+                    );
+
                     break;
                 default:
                     //Console.WriteLine("Unknown command");
@@ -195,8 +239,10 @@ namespace AnimalObservingServer
 
         private void SendToEndpoint(Socket clientSocket, Message message)
         {
-            byte[] messageBytes = Encoding.ASCII.GetBytes(message.ToJsonString());
+            string messageString = message.ToJsonString() + "\n";
+            byte[] messageBytes = Encoding.ASCII.GetBytes(messageString);
             clientSocket.Send(messageBytes, 0, messageBytes.Length, SocketFlags.None);
+            Console.WriteLine($"Sending: {messageString} to {clientSocket.ToString()}");
         }
 
         private void SendToEndpoint(Socket clientSocket, byte[] messageBytes)
