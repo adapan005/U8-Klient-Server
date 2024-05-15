@@ -32,7 +32,6 @@ namespace TestClient
             try
             {
                 _clientSocket.Connect(serverEndPoint);
-                // Start a separate thread for receiving messages from the server
                 Thread receiveThread = new Thread(Listen);
                 receiveThread.Start();
             }

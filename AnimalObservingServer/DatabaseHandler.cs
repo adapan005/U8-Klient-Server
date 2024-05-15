@@ -14,7 +14,7 @@ namespace AnimalObservingServer
     {
         private readonly MySqlConnection connection;
 
-        public DatabaseHandler(string databaseServerIP, int databaseServerPort,  string databaseName, string uid, string databasePassword)
+        public DatabaseHandler(string databaseServerIP, int databaseServerPort, string databaseName, string uid, string databasePassword)
         {
             this.connection = new MySqlConnection(
                 $"server={databaseServerIP};" +
@@ -31,31 +31,28 @@ namespace AnimalObservingServer
             try
             {
                 connection.Open();
+                cmd = new MySqlCommand("SELECT * FROM AnimalRecord AR JOIN Marker M ON AR.MarkerID = M.MarkerID", connection);
+                using (MySqlDataReader citac = cmd.ExecuteReader())
+                {
+                    while (citac.Read())
+                    {
+                        int id = citac.GetInt32("RecordID");
+                        decimal latitude = citac.GetDecimal("Latitude");
+                        decimal longitude = citac.GetDecimal("Longitude");
+                        string recordLabel = citac.GetString("RecordLabel");
+                        animalRecords.Add(new MapMarker(id, latitude, longitude, recordLabel));
+                    }
+                }
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
-            cmd = new MySqlCommand("SELECT * FROM AnimalRecord AR JOIN Marker M ON AR.MarkerID = M.MarkerID", connection);
-            MySqlDataReader citac = null;
-            try
+            finally
             {
-                citac = cmd.ExecuteReader();
+                if (connection.State == ConnectionState.Open)
+                    connection.Close();
             }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-            while (citac.Read())
-            {
-                int id = citac.GetInt32("RecordID");
-                decimal latitude = citac.GetDecimal("Latitude");
-                decimal longitude = citac.GetDecimal("Longitude");
-                string recordLabel = citac.GetString("RecordLabel");
-                animalRecords.Add(new MapMarker(id, latitude, longitude, recordLabel));
-            }
-            citac.Close();
-            connection.Close();
             return animalRecords;
         }
 
@@ -102,10 +99,11 @@ namespace AnimalObservingServer
         {
             if (speciesID < 32 || recordLabel.Length <= 1)
             {
+                Console.WriteLine("NOT ADDED!");
                 return;
             }
             MySqlCommand cmd = new MySqlCommand("CALL AddRecordWithMarker(@speciesID, @latitude, @longitude, @recordLabel, @recordDescription)", connection);
-            // Add parameters
+            
             cmd.Parameters.AddWithValue("@speciesID", speciesID);
             cmd.Parameters.AddWithValue("@latitude", latitude);
             cmd.Parameters.AddWithValue("@longitude", longitude);
@@ -131,6 +129,7 @@ namespace AnimalObservingServer
                     connection.Close();
                 }
             }
+            connection.Close();
         }
 
 
@@ -169,38 +168,42 @@ namespace AnimalObservingServer
                 detailedRecord = new DetailedRecord(id, latitude, label, longitude, speciesName, text, date);
             }
             citac.Close();
+            connection.Close();
             return detailedRecord;
         }
 
         public List<Specie> GetSpecies()
         {
-            List<Specie> navrat = new List<Specie>();
+            List<Specie> speciesList = new List<Specie>();
             MySqlCommand cmd = new MySqlCommand("SELECT * FROM Species", connection);
+
             try
             {
                 connection.Open();
+                MySqlDataReader citac = cmd.ExecuteReader();
+
+                if (citac != null)
+                {
+                    while (citac.Read())
+                    {
+                        int id = citac.GetInt32("SpeciesID");
+                        string name = citac.GetString("SpeciesName");
+                        speciesList.Add(new Specie(id, name));
+                    }
+
+                    citac.Close();
+                }
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
-            MySqlDataReader citac = null;
-            try
+            finally
             {
-                citac = cmd.ExecuteReader();
+                connection.Close();
             }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-            while (citac.Read())
-            {
-                int id = citac.GetInt32("SpeciesID");
-                string name = citac.GetString("SpeciesName");
-                navrat.Add(new Specie(id, name));
-            }
-            citac.Close();
-            return navrat;
+
+            return speciesList;
         }
     }
 }

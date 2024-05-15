@@ -50,12 +50,6 @@ namespace AnimalObservingServer
             serverListener.Listen(0);
             Console.WriteLine("AnimalObserving-Server started");
 
-            //foreach (var record in databaseHandler.GetSpecies())
-            //{
-            //    Console.WriteLine(record.ToString());
-            //}
-            //Console.WriteLine(databaseHandler.GetDetailedRecord(25));
-
             while (true)
             {
                 try
@@ -81,7 +75,6 @@ namespace AnimalObservingServer
             Message? newMessage;
             if (jsonString != null)
             {
-                //Deserialise json
                 try
                 {
                     newMessage = JsonSerializer.Deserialize<Message>(jsonString);
@@ -107,21 +100,16 @@ namespace AnimalObservingServer
                     int size = client.Receive(message);
                     if (size == 0)
                     {
-                        // Connection closed by the client
                         Console.WriteLine("Client disconnected");
                         _clientConnections.Remove(client);
                         break;
                     }
                     string messageString = Encoding.ASCII.GetString(message, 0, size);
-                    //Do something with messages
                     Console.WriteLine("RAW RECEIVED: " + messageString);
-                    //Message msg = StringToMessage(messageString);
-                    //Console.WriteLine("TO MESSAGE: " + msg.ToString());
                     ProcessMessage(StringToMessage(messageString), client);
                 }
                 catch
                 {
-                    // Handle socket exception (client disconnected)
                     Console.WriteLine("Client disconnected");
                     _clientConnections.Remove(client);
                     break;
@@ -165,10 +153,6 @@ namespace AnimalObservingServer
                     int lat2 = numbers[2];
                     int lng2 = numbers[3];
                     List<MapMarker> markers = databaseHandler.GetMarkers(lat1, lng1, lat2, lng2);
-                    //TODO: Posli odpoved obsahujucu markers
-                    //foreach marker posli message a potom zakonci nejakou ukoncovacou spravou aby vedel ze uz ma vsetky markery
-                    //alebo bude na strane klienta permanentne nejake vlakno co bude pozerat na prijate spravy a podla toho pridavat
-                    //nove markers
                     foreach (var marker in markers)
                     {
                         Message newMessage = new Message(marker.ToString(), DateTime.UtcNow, "", MessageType.MapMarkerInfo);
@@ -180,7 +164,6 @@ namespace AnimalObservingServer
                     Console.WriteLine("REQUESTED DETAILED RECORD");
                     DetailedRecord record = databaseHandler.GetDetailedRecord(Int32.Parse(message.Text));
                     SendToEndpoint(clientSocket, record.ToString(), MessageType.RequestDetailedMarker);
-                    //SendToEndpoint(clientSocket, "END", MessageType.Informative);
                     break;
                 case MessageType.RequestAllSpecies:
                     Console.WriteLine("REQUESTED ALL SPECIES");
@@ -199,7 +182,6 @@ namespace AnimalObservingServer
                     double lon = Double.Parse(polia[2]);
                     string label = polia[3];
                     string description = polia[4];
-                    //FORMAT BUDE int speciesID, decimal latitude, decimal longitude, DateTime recordDate, string recordLabel, string recordDescription
                     databaseHandler.AddRecordWithMarker(
                         speciesID,
                         lat,
