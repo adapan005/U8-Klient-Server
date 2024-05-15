@@ -1,0 +1,103 @@
+CREATE DATABASE animals;
+USE animals;
+
+CREATE TABLE Species (
+	SpeciesID INT NOT NULL AUTO_INCREMENT,
+	SpeciesName VARCHAR(255) NOT NULL,
+	PRIMARY KEY (SpeciesID)
+);
+
+CREATE TABLE Marker (
+	MarkerID INT NOT NULL AUTO_INCREMENT,
+	Latitude DECIMAL NOT NULL,
+	Longitude DECIMAL NOT NULL,
+	PRIMARY KEY (MarkerID)
+);
+
+CREATE TABLE AnimalRecord (
+	RecordID INT NOT NULL AUTO_INCREMENT,
+	SpeciesID INT NOT NULL,
+	Date DATE NOT NULL,
+	RecordLabel VARCHAR(255),
+	Description TEXT,
+	PRIMARY KEY (RecordID)
+);
+
+ALTER TABLE AnimalRecord ADD MarkerID INT;
+
+CREATE TABLE AnimalRecordImage (
+	RecordID INT NOT NULL,
+	ImageID INT NOT NULL
+);
+
+CREATE TABLE Image (
+	ImageID INT NOT NULL AUTO_INCREMENT,
+	ImagePath VARCHAR(10000),
+	PRIMARY KEY (ImageID)
+);
+
+ALTER TABLE Marker
+MODIFY COLUMN Latitude DECIMAL(18,15),
+MODIFY COLUMN Longitude DECIMAL(18,15);
+
+DROP PROCEDURE IF EXISTS deleteRecord;
+DELIMITER //
+
+CREATE PROCEDURE deleteRecord (
+    IN Vstup INT
+)
+BEGIN
+	DELETE FROM AnimalRecordImage WHERE RecordID = Vstup;
+    DELETE FROM AnimalRecord WHERE RecordID = Vstup;
+    DELETE FROM Image WHERE ImageID NOT IN (SELECT ImageID FROM AnimalRecordImage WHERE RecordID = Vstup);
+    DELETE FROM Marker WHERE MarkerID NOT IN (SELECT MarkerID FROM AnimalRecord WHERE RecordID = Vstup);
+END //
+
+SET SQL_SAFE_UPDATES = 0;
+
+INSERT INTO Species VALUES
+    (NULL,'Dog'),
+    (NULL,'Cat'),
+    (NULL,'Rabbit'),
+    (NULL,'Cow'),
+    (NULL,'Chicken'),
+    (NULL,'Goose'),
+    (NULL,'Donkey'),
+    (NULL,'Deer'),
+    (NULL,'Stag'),
+    (NULL,'Fox'),
+    (NULL,'Hog'),
+    (NULL,'Owl'),
+    (NULL,'Squirrel'),
+    (NULL,'Ferret'),
+    (NULL,'Goat'),
+    (NULL,'Turkey'),
+    (NULL,'Sheep'),
+    (NULL,'Racoon'),
+    (NULL,'Turtle'),
+    (NULL,'Snake'),
+    (NULL,'Fish');
+    
+DELIMITER //
+
+CREATE PROCEDURE AddRecordWithMarker(
+    IN speciesID INT,
+    IN latitude DECIMAL(10, 8),
+    IN longitude DECIMAL(11, 8),
+    IN recordLabel VARCHAR(255),
+    IN recordDescription TEXT
+)
+BEGIN
+    DECLARE markerID INT;
+    
+    START TRANSACTION;
+
+    INSERT INTO Marker (Latitude, Longitude) VALUES (latitude, longitude);
+    SET markerID = LAST_INSERT_ID();
+
+    INSERT INTO AnimalRecord (SpeciesID, Date, RecordLabel, Description, MarkerID)
+    VALUES (speciesID, NOW(), recordLabel, recordDescription, markerID);
+    
+    COMMIT;
+    
+END //
